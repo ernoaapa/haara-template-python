@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 
 app = FastAPI(title="My Python App")
@@ -153,6 +153,22 @@ HTML = """<!DOCTYPE html>
       .then(d => document.getElementById('json-output').textContent = JSON.stringify(d, null, 2))
       .catch(() => document.getElementById('json-output').textContent = 'Could not fetch /api/hello');
   </script>
+  <script>
+    (function() {
+      var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      function connect() {
+        var ws = new WebSocket(proto + '//' + location.host + '/ws/reload');
+        ws.onclose = function() {
+          setTimeout(function() {
+            var s = new WebSocket(proto + '//' + location.host + '/ws/reload');
+            s.onopen = function() { location.reload(); };
+            s.onclose = function() { connect(); };
+          }, 1000);
+        };
+      }
+      connect();
+    })();
+  </script>
 </body>
 </html>"""
 
@@ -170,6 +186,16 @@ async def hello():
         "python": "3.12",
         "docs": "/docs",
     }
+
+
+@app.websocket("/ws/reload")
+async def reload_websocket(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        pass
 
 
 @app.get("/api/items/{item_id}")
